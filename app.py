@@ -620,7 +620,7 @@ if st.session_state.show_edit_form and st.session_state.edit_tarefa_id:
 st.markdown("""
     <div class="main-header">
         <h1>🎯 Math Study Manager</h1>
-        <p>Gerencie suas tarefas de estudo e projetos IC com elegância e eficiência</p>
+        <p>Gerencie suas tarefas de estudo e projetos</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -891,4 +891,4 @@ with tab4:
 
 # Footer
 st.divider()
-st.markdown("<div style='text-align: center; color: #64748B; font-size: 0.875rem;'><p>🎯 Math Study Manager • Gerencie seu tempo de estudo com elegância</p><p style='font-size: 0.75rem;'>Desenvolvido com ❤️ usando Streamlit</p></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #64748B; font-size: 0.875rem;'><p>🎯 Math Study Manager</p><p style='font-size: 0.75rem;'></p></div>", unsafe_allow_html=True)
