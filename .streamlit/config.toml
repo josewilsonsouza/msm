@@ -1,0 +1,41 @@
+# Este é o seu arquivo de tema: .streamlit/config.toml
+
+[theme]
+# "dark" ou "light"
+base = "dark"
+
+# Cor principal para elementos interativos (botões, sliders, etc.)
+# Usado para focar elementos e botões primários [cite: 25, 80-83]
+primaryColor = "#6C63FF"
+
+# Cores de fundo
+backgroundColor = "#1a202c"
+secondaryBackgroundColor = "#2d3748" # Usado para widgets e contrastes [cite: 107, 108]
+codeBackgroundColor = "#262730" # Cor de fundo para blocos de código 
+
+# Cor do texto principal [cite: 140]
+textColor = "#E2E8F0"
+
+# Fonte padrão
+font = "sans serif"
+
+# --- Paleta de Cores Básica ---
+# Usada por st.error, st.warning, st.success, e texto colorido [cite: 58, 64]
+redColor = "green"
+orangeColor = "#DD6B20"
+greenColor = "#38A169"
+blueColor = "#3182CE"
+
+
+# --- Estilo dos Widgets ---
+baseRadius = "0.75rem" # Arredondamento para a maioria dos elementos [cite: 167]
+buttonRadius = "0.75rem" # Arredondamento específico para botões [cite: 181]
+showWidgetBorder = true # Mostra bordas em widgets como text_input [cite: 209]
+borderColor = "#4A5568" # Cor da borda do widget [cite: 210]
+
+
+# --- Configuração Específica da Sidebar ---
+# Podemos sobrepor quase todas as configurações do [theme] aqui [cite: 24, 34]
+[theme.sidebar]
+backgroundColor = "#2d3748" # Fundo da sidebar (a cor secundária do app) 
+secondaryBackgroundColor = "#1a202c" # Fundo dos widgets na sidebar
