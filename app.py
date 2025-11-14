@@ -1,135 +1,59 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import json
-import base64
 
-# Configuração da página
+# --- Configuração da Página ---
+# Usamos um emoji de alvo para focar em "tarefas"
 st.set_page_config(
     page_title="Math Study Manager",
-    page_icon="📚",
+    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ============= PWA SETUP =============
-def add_pwa_support():
-    """Adiciona suporte PWA com manifest e service worker"""
-    
-    # Manifest JSON
-    manifest = {
-        "name": "Math Study Manager",
-        "short_name": "StudyApp",
-        "description": "Gerenciador de estudos em matemática, projetos de IC e tarefas",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#0e1117",
-        "theme_color": "#ff4b4b",
-        "orientation": "portrait-primary",
-        "icons": [
-            {
-                "src": "https://cdn-icons-png.flaticon.com/512/3976/3976625.png",
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "any maskable"
-            },
-            {
-                "src": "https://cdn-icons-png.flaticon.com/512/3976/3976625.png",
-                "sizes": "512x512",
-                "type": "image/png"
-            }
-        ]
-    }
-    
-    manifest_json = json.dumps(manifest)
-    manifest_base64 = base64.b64encode(manifest_json.encode()).decode()
-    
-    # Service Worker simplificado
-    service_worker = """
-    const CACHE_NAME = 'study-manager-v1';
-    const urlsToCache = ['/'];
-    
-    self.addEventListener('install', event => {
-        event.waitUntil(
-            caches.open(CACHE_NAME)
-                .then(cache => cache.addAll(urlsToCache))
-        );
-    });
-    
-    self.addEventListener('fetch', event => {
-        event.respondWith(
-            caches.match(event.request)
-                .then(response => response || fetch(event.request))
-        );
-    });
-    """
-    
-    sw_base64 = base64.b64encode(service_worker.encode()).decode()
-    
-    # Injetar no HTML
-    pwa_html = f"""
-    <link rel="manifest" href="data:application/json;base64,{manifest_base64}">
-    <meta name="theme-color" content="#ff4b4b">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="StudyApp">
-    
-    <script>
-        if ('serviceWorker' in navigator) {{
-            navigator.serviceWorker.register(
-                'data:text/javascript;base64,{sw_base64}'
-            ).catch(err => console.log('SW registration failed'));
-        }}
-    </script>
-    
-    <style>
-        /* Botão de instalação PWA */
-        .install-button {{
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #ff4b4b;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            display: none;
-            z-index: 1000;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }}
-    </style>
-    
-    <button class="install-button" id="installButton">📱 Instalar App</button>
-    
-    <script>
-        let deferredPrompt;
-        const installButton = document.getElementById('installButton');
-        
-        window.addEventListener('beforeinstallprompt', (e) => {{
-            e.preventDefault();
-            deferredPrompt = e;
-            installButton.style.display = 'block';
-        }});
-        
-        installButton.addEventListener('click', async () => {{
-            if (deferredPrompt) {{
-                deferredPrompt.prompt();
-                const {{ outcome }} = await deferredPrompt.userChoice;
-                deferredPrompt = null;
-                installButton.style.display = 'none';
-            }}
-        }});
-    </script>
-    """
-    
-    st.markdown(pwa_html, unsafe_allow_html=True)
+# --- Paleta de Cores e Estilos ---
+# Vamos definir algumas cores para usar no app
+CORES = {
+    "Alta": "#ff4b4b",  # Vermelho
+    "Média": "#ffaa00", # Laranja
+    "Baixa": "#00b0f0", # Azul
+    "Concluída": "#00c851", # Verde
+    "Em Progresso": "#ffaa00", # Laranja
+    "Pendente": "#a0a0a0"  # Cinza
+}
 
-# Adicionar PWA
-add_pwa_support()
+# Injetar CSS customizado para os cards de tarefa
+# Isso nos dá mais controle sobre o design
+st.markdown(f"""
+<style>
+    .task-card {{
+        border: 2px solid;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }}
+    .task-card:hover {{
+        box-shadow: 0 6px 10px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }}
+    .task-card-Alta {{ border-color: {CORES['Alta']}; }}
+    .task-card-Média {{ border-color: {CORES['Média']}; }}
+    .task-card-Baixa {{ border-color: {CORES['Baixa']}; }}
+    .task-card-Concluída {{ 
+        border-color: {CORES['Concluída']}; 
+        background-color: #f0fdf4; /* Um leve fundo verde */
+    }}
+    
+    /* Remover espaço extra criado pelo st.metric */
+    div[data-testid="stMetric"] {{
+        padding-bottom: 0px;
+    }}
+</style>
+""", unsafe_allow_html=True)
+
 
 # ============= INICIALIZAÇÃO DE DADOS =============
 def init_session_state():
@@ -143,7 +67,7 @@ def init_session_state():
                 'prioridade': 'Alta',
                 'status': 'Em Progresso',
                 'prazo': datetime.now() + timedelta(days=3),
-                'tempo_estimado': 4.0,
+                'tempo_estimado': 4.0, # Mantido, mas não será exibido
                 'tempo_gasto': 1.5
             },
             {
@@ -176,24 +100,35 @@ def init_session_state():
                 'tempo_estimado': 6.0,
                 'tempo_gasto': 0.0
             },
+            {
+                'id': 5,
+                'titulo': 'Exercícios de Geometria Analítica',
+                'categoria': 'Matemática',
+                'prioridade': 'Baixa',
+                'status': 'Pendente',
+                'prazo': datetime.now() + timedelta(days=15),
+                'tempo_estimado': 5.0,
+                'tempo_gasto': 0.0
+            },
+            {
+                'id': 6,
+                'titulo': 'Apresentação IC',
+                'categoria': 'Projeto IC',
+                'prioridade': 'Média',
+                'status': 'Concluída',
+                'prazo': datetime.now() - timedelta(days=2),
+                'tempo_estimado': 4.0,
+                'tempo_gasto': 4.0
+            },
         ]
     
-    if 'sessoes_estudo' not in st.session_state:
-        # Gerar histórico dos últimos 14 dias
-        st.session_state.sessoes_estudo = []
-        for i in range(14):
-            data = datetime.now() - timedelta(days=i)
-            st.session_state.sessoes_estudo.append({
-                'data': data,
-                'horas': round(2 + (i % 4) * 0.5, 1),
-                'categoria': ['Matemática', 'Projeto IC'][i % 2]
-            })
+    # sessoes_estudo foi removido, como solicitado.
 
 init_session_state()
 
 # ============= FUNÇÕES AUXILIARES =============
 def calcular_metricas():
-    """Calcula métricas principais"""
+    """Calcula métricas principais (apenas contagem de tarefas)"""
     tarefas = st.session_state.tarefas
     
     total_tarefas = len(tarefas)
@@ -201,153 +136,190 @@ def calcular_metricas():
     em_progresso = sum(1 for t in tarefas if t['status'] == 'Em Progresso')
     pendentes = sum(1 for t in tarefas if t['status'] == 'Pendente')
     
-    total_horas_estimadas = sum(t['tempo_estimado'] for t in tarefas)
-    total_horas_gastas = sum(t['tempo_gasto'] for t in tarefas)
-    
-    # Horas estudadas últimos 7 dias
-    semana_passada = datetime.now() - timedelta(days=7)
-    horas_semana = sum(
-        s['horas'] for s in st.session_state.sessoes_estudo 
-        if s['data'] >= semana_passada
-    )
-    
     return {
         'total_tarefas': total_tarefas,
         'concluidas': concluidas,
         'em_progresso': em_progresso,
         'pendentes': pendentes,
-        'taxa_conclusao': (concluidas / total_tarefas * 100) if total_tarefas > 0 else 0,
-        'horas_estimadas': total_horas_estimadas,
-        'horas_gastas': total_horas_gastas,
-        'horas_semana': horas_semana
     }
 
+def exibir_tarefa_estilizada(tarefa):
+    """Renderiza um card de tarefa com cores e estilo."""
+    
+    status_emoji = {
+        'Pendente': '⏸️',
+        'Em Progresso': '▶️',
+        'Concluída': '✅'
+    }
+    
+    # Define a classe CSS baseada na prioridade ou status
+    if tarefa['status'] == 'Concluída':
+        card_class = "task-card-Concluída"
+    else:
+        card_class = f"task-card-{tarefa['prioridade']}"
+    
+    # Container com a classe CSS customizada
+    with st.container():
+        st.markdown(f'<div class="task-card {card_class}">', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([4, 1])
+        
+        with col1:
+            # Título com status
+            st.markdown(f"### {status_emoji[tarefa['status']]} {tarefa['titulo']}")
+            
+            # Tags de Categoria e Prioridade (usando markdown para cores)
+            cor_prioridade = CORES.get(tarefa['prioridade'], '#888')
+            
+            st.markdown(
+                f"📁 **{tarefa['categoria']}** | <span style='color:{cor_prioridade};'>**🎯 {tarefa['prioridade']}**</span>",
+                unsafe_allow_html=True
+            )
+        
+        with col2:
+            # Prazo
+            dias_restantes = (tarefa['prazo'].date() - datetime.now().date()).days
+            cor_dias = "🔴" if dias_restantes <= 1 else "🟡" if dias_restantes <= 3 else "🟢"
+            
+            if tarefa['status'] == 'Concluída':
+                st.metric("Prazo", "Finalizada")
+                st.caption(f"✅ Concluída")
+            elif dias_restantes < 0:
+                st.metric("Prazo", f"{abs(dias_restantes)}d")
+                st.caption(f"🔴 Atrasada!")
+            else:
+                st.metric("Prazo", f"{dias_restantes}d")
+                st.caption(f"{cor_dias} restantes")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
 # ============= INTERFACE =============
-st.title("📚 Math Study Manager")
-st.markdown("*Gerenciador de estudos, projetos de IC e tarefas - PWA Ready*")
+st.title("🎯 Math Study Manager")
+st.markdown("*Seu gerenciador de tarefas de estudo e projetos de IC.*")
 
-# Tabs principais
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "✅ Tarefas", "📈 Progresso", "➕ Nova Tarefa"])
+# Tabs principais (reorganizadas e simplificadas)
+tab1, tab2, tab3 = st.tabs([
+    "📊 Visão Geral", 
+    "🎯 Minhas Tarefas", 
+    "➕ Nova Tarefa"
+])
 
-# ============= TAB 1: DASHBOARD =============
+# ============= TAB 1: VISÃO GERAL (Novo Dashboard) =============
 with tab1:
+    
+    # Métricas de contagem (simplificado)
     metricas = calcular_metricas()
-    
-    # Métricas principais
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "Tarefas Totais", 
-            metricas['total_tarefas'],
-            f"{metricas['concluidas']} concluídas"
-        )
-    
-    with col2:
-        st.metric(
-            "Em Progresso", 
-            metricas['em_progresso'],
-            f"{metricas['pendentes']} pendentes"
-        )
-    
-    with col3:
-        st.metric(
-            "Taxa de Conclusão", 
-            f"{metricas['taxa_conclusao']:.0f}%"
-        )
-    
-    with col4:
-        st.metric(
-            "Horas (7 dias)", 
-            f"{metricas['horas_semana']:.1f}h",
-            f"{metricas['horas_semana']/7:.1f}h/dia"
-        )
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Pendentes", metricas['pendentes'])
+    col2.metric("Em Progresso", metricas['em_progresso'])
+    col3.metric("Concluídas", metricas['concluidas'])
     
     st.divider()
+
+    # --- Visualização de Tarefas por Categoria (o "Grafo") ---
+    st.subheader("Visualização por Categorias (Treemap)")
     
-    # Gráficos
-    col1, col2 = st.columns(2)
+    df_tarefas = pd.DataFrame(st.session_state.tarefas)
     
-    with col1:
-        st.subheader("📅 Histórico de Estudos")
-        df_sessoes = pd.DataFrame(st.session_state.sessoes_estudo)
-        df_sessoes = df_sessoes.sort_values('data')
+    # "Tags" para filtrar o gráfico
+    categorias_disponiveis = df_tarefas['categoria'].unique()
+    tags_categorias = st.multiselect(
+        "Filtrar por 'Tags' (Categorias):",
+        options=categorias_disponiveis,
+        default=categorias_disponiveis
+    )
+    
+    if not tags_categorias:
+        st.warning("Selecione pelo menos uma categoria para ver o gráfico.")
+    elif df_tarefas.empty or not df_tarefas['categoria'].isin(tags_categorias).any():
+        st.info("Nenhuma tarefa encontrada para as tags selecionadas.")
+    else:
+        df_filtrado = df_tarefas[df_tarefas['categoria'].isin(tags_categorias)]
         
-        fig = px.line(
-            df_sessoes, 
-            x='data', 
-            y='horas',
+        # Adicionando uma coluna 'contagem' para o treemap
+        df_filtrado['contagem'] = 1
+        
+        # Criando o Treemap
+        fig = px.treemap(
+            df_filtrado,
+            path=[px.Constant("Todas as Tarefas"), 'categoria', 'prioridade', 'status'],
+            values='contagem',
             color='categoria',
-            title='Horas de Estudo por Dia',
-            markers=True
+            color_discrete_map={
+                'Matemática': '#1f77b4',
+                'Projeto IC': '#ff7f0e',
+                'Outros': '#2ca02c',
+                '(?)': '#d62728'
+            },
+            title="Distribuição de Tarefas por Categoria, Prioridade e Status"
         )
         fig.update_layout(
-            height=300,
-            margin=dict(l=20, r=20, t=40, b=20),
-            xaxis_title='Data',
-            yaxis_title='Horas'
+            margin=dict(t=50, l=25, r=25, b=25),
+            height=450
         )
-        st.plotly_chart(fig, width="stretch")
+        fig.update_traces(textinfo="label+value", textfont_size=14)
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # --- Tarefas Urgentes (Estilo mantido e melhorado) ---
+    st.subheader("🔥 Tarefas Urgentes (Próximos 3 dias)")
     
-    with col2:
-        st.subheader("📊 Distribuição de Tarefas")
-        df_tarefas = pd.DataFrame(st.session_state.tarefas)
-        
-        status_counts = df_tarefas['status'].value_counts()
-        
-        fig = go.Figure(data=[go.Pie(
-            labels=status_counts.index,
-            values=status_counts.values,
-            hole=.4,
-            marker_colors=['#ff4b4b', '#ffa500', '#00cc00']
-        )])
-        fig.update_layout(
-            height=300,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        st.plotly_chart(fig, width="stretch")
-    
-    # Tarefas urgentes
-    st.subheader("🔥 Tarefas Urgentes")
     tarefas_urgentes = [
         t for t in st.session_state.tarefas 
         if t['status'] != 'Concluída' and 
-        (t['prazo'] - datetime.now()).days <= 3
+        (t['prazo'].date() - datetime.now().date()).days <= 3
     ]
     
     if tarefas_urgentes:
         for tarefa in sorted(tarefas_urgentes, key=lambda x: x['prazo']):
-            dias_restantes = (tarefa['prazo'] - datetime.now()).days
-            cor = "🔴" if dias_restantes <= 1 else "🟡"
+            dias_restantes = (tarefa['prazo'].date() - datetime.now().date()).days
             
+            if dias_restantes < 0:
+                cor_emoji = "🚨"
+                mensagem_dias = f"Atrasada em {abs(dias_restantes)} dias!"
+            elif dias_restantes == 0:
+                cor_emoji = "🔴"
+                mensagem_dias = "Vence HOJE!"
+            elif dias_restantes == 1:
+                cor_emoji = "🔴"
+                mensagem_dias = "Vence amanhã!"
+            else:
+                cor_emoji = "🟡"
+                mensagem_dias = f"Vence em {dias_restantes} dias."
+            
+            # Usando o st.warning que você gostou
             st.warning(
-                f"{cor} **{tarefa['titulo']}** - "
-                f"Prazo: {tarefa['prazo'].strftime('%d/%m/%Y')} "
-                f"({dias_restantes} dias)"
+                f"{cor_emoji} **{tarefa['titulo']}** ({tarefa['categoria']}) - "
+                f"Prazo: {tarefa['prazo'].strftime('%d/%m/%Y')} | **{mensagem_dias}**"
             )
     else:
         st.success("✅ Nenhuma tarefa urgente no momento!")
 
-# ============= TAB 2: TAREFAS =============
+# ============= TAB 2: MINHAS TAREFAS (Lista Estilizada) =============
 with tab2:
     st.subheader("Lista de Tarefas")
     
-    # Filtros
+    # Filtros ("Tags" de filtragem)
     col1, col2, col3 = st.columns(3)
     with col1:
         filtro_categoria = st.selectbox(
             "Categoria",
-            ["Todas", "Matemática", "Projeto IC", "Outros"]
+            ["Todas", "Matemática", "Projeto IC", "Outros"],
+            key='filtro_cat_tab2'
         )
     with col2:
         filtro_status = st.selectbox(
             "Status",
-            ["Todos", "Pendente", "Em Progresso", "Concluída"]
+            ["Todos", "Pendente", "Em Progresso", "Concluída"],
+            key='filtro_status_tab2'
         )
     with col3:
         filtro_prioridade = st.selectbox(
             "Prioridade",
-            ["Todas", "Alta", "Média", "Baixa"]
+            ["Todas", "Alta", "Média", "Baixa"],
+            key='filtro_prio_tab2'
         )
     
     # Aplicar filtros
@@ -362,125 +334,65 @@ with tab2:
     
     st.divider()
     
-    # Exibir tarefas
-    for tarefa in tarefas_filtradas:
-        with st.container():
-            col1, col2, col3 = st.columns([3, 1, 1])
-            
-            with col1:
-                status_emoji = {
-                    'Pendente': '⏸️',
-                    'Em Progresso': '▶️',
-                    'Concluída': '✅'
-                }
-                st.markdown(f"### {status_emoji[tarefa['status']]} {tarefa['titulo']}")
-                st.caption(f"📁 {tarefa['categoria']} | 🎯 {tarefa['prioridade']} | 📅 {tarefa['prazo'].strftime('%d/%m/%Y')}")
-            
-            with col2:
-                progresso = (tarefa['tempo_gasto'] / tarefa['tempo_estimado'] * 100) if tarefa['tempo_estimado'] > 0 else 0
-                st.metric("Progresso", f"{progresso:.0f}%")
-                st.caption(f"{tarefa['tempo_gasto']:.1f}h / {tarefa['tempo_estimado']:.1f}h")
-            
-            with col3:
-                dias_restantes = (tarefa['prazo'] - datetime.now()).days
-                cor_dias = "🔴" if dias_restantes <= 1 else "🟡" if dias_restantes <= 3 else "🟢"
-                st.metric("Prazo", f"{dias_restantes}d")
-                st.caption(f"{cor_dias} dias restantes")
+    # Exibir tarefas estilizadas
+    if not tarefas_filtradas:
+        st.info("Nenhuma tarefa encontrada com esses filtros.")
+    else:
+        # Ordenar: Concluídas por último, mais urgentes primeiro
+        tarefas_filtradas.sort(key=lambda x: (x['status'] == 'Concluída', x['prazo']))
         
-        st.divider()
+        for tarefa in tarefas_filtradas:
+            exibir_tarefa_estilizada(tarefa)
 
-# ============= TAB 3: PROGRESSO =============
+
+# ============= TAB 3: NOVA TAREFA (Formulário com Emojis) =============
 with tab3:
-    st.subheader("📈 Análise de Progresso")
-    
-    df_tarefas = pd.DataFrame(st.session_state.tarefas)
-    
-    # Tempo por categoria
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### ⏱️ Tempo Gasto por Categoria")
-        tempo_categoria = df_tarefas.groupby('categoria')['tempo_gasto'].sum().reset_index()
-        
-        fig = px.bar(
-            tempo_categoria,
-            x='categoria',
-            y='tempo_gasto',
-            color='categoria',
-            title='Distribuição de Tempo'
-        )
-        fig.update_layout(height=300, showlegend=False)
-        st.plotly_chart(fig, width="stretch")
-    
-    with col2:
-        st.markdown("#### 🎯 Eficiência por Prioridade")
-        eficiencia = df_tarefas.groupby('prioridade', group_keys=False).apply(
-            lambda x: (x['tempo_gasto'].sum() / x['tempo_estimado'].sum() * 100) 
-            if x['tempo_estimado'].sum() > 0 else 0, include_groups=False
-        ).reset_index()
-        eficiencia.columns = ['prioridade', 'eficiencia']
-        
-        fig = px.bar(
-            eficiencia,
-            x='prioridade',
-            y='eficiencia',
-            color='prioridade',
-            title='% do Tempo Estimado Utilizado'
-        )
-        fig.update_layout(height=300, showlegend=False)
-        st.plotly_chart(fig, width="stretch")
-    
-    # Tabela resumo
-    st.markdown("#### 📋 Resumo Detalhado")
-    resumo = df_tarefas.groupby(['categoria', 'status']).agg({
-        'id': 'count',
-        'tempo_estimado': 'sum',
-        'tempo_gasto': 'sum'
-    }).reset_index()
-    resumo.columns = ['Categoria', 'Status', 'Quantidade', 'Horas Estimadas', 'Horas Gastas']
-    st.dataframe(resumo, width="stretch", hide_index=True)
-
-# ============= TAB 4: NOVA TAREFA =============
-with tab4:
     st.subheader("➕ Criar Nova Tarefa")
     
     with st.form("nova_tarefa_form"):
-        titulo = st.text_input("Título da Tarefa*")
+        # Campo obrigatório
+        titulo = st.text_input("✏️ Título da Tarefa*")
         
         col1, col2 = st.columns(2)
         with col1:
+            # Campos obrigatórios
             categoria = st.selectbox(
-                "Categoria*",
+                "📁 Categoria*",
                 ["Matemática", "Projeto IC", "Outros"]
             )
             prioridade = st.selectbox(
-                "Prioridade*",
-                ["Alta", "Média", "Baixa"]
+                "🎯 Prioridade*",
+                ["Alta", "Média", "Baixa"],
+                index=1 # Default Média
             )
         
         with col2:
+            # Campo obrigatório
             prazo = st.date_input(
-                "Prazo*",
+                "📅 Prazo*",
                 value=datetime.now() + timedelta(days=7)
             )
+            # Campo opcional (sem *)
             tempo_estimado = st.number_input(
-                "Tempo Estimado (horas)*",
-                min_value=0.5,
+                "⏱️ Tempo Estimado (horas)",
+                min_value=0.0,
                 max_value=100.0,
-                value=2.0,
+                value=1.0, # Default 1.0, mas 0.0 é permitido
                 step=0.5
             )
         
-        descricao = st.text_area("Descrição (opcional)")
+        # Campo opcional
+        descricao = st.text_area("🗒️ Descrição (opcional)")
         
-        submitted = st.form_submit_button("✅ Criar Tarefa", width="stretch")
+        submitted = st.form_submit_button("✅ Criar Tarefa", use_container_width=True)
         
         if submitted:
+            # Apenas o título é realmente verificado
             if not titulo:
                 st.error("⚠️ O título é obrigatório!")
             else:
                 nova_tarefa = {
-                    'id': max([t['id'] for t in st.session_state.tarefas]) + 1,
+                    'id': max([t['id'] for t in st.session_state.tarefas], default=0) + 1,
                     'titulo': titulo,
                     'categoria': categoria,
                     'prioridade': prioridade,
@@ -493,15 +405,3 @@ with tab4:
                 st.session_state.tarefas.append(nova_tarefa)
                 st.success(f"✅ Tarefa '{titulo}' criada com sucesso!")
                 st.balloons()
-
-# ============= FOOTER =============
-st.divider()
-st.markdown(
-    """
-    <div style='text-align: center; color: #666; padding: 20px;'>
-    📱 <b>PWA Ready</b> - Instale este app na tela inicial do seu celular<br>
-    Funciona offline | Notificações push | Experiência nativa
-    </div>
-    """,
-    unsafe_allow_html=True
-)
